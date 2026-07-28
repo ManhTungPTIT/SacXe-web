@@ -13,6 +13,28 @@ const paymentService = {
       throw error;
     }
   },
+  getAdminTransactions: async ({ status, page = 1, limit = 20 } = {}) => {
+    try {
+      const response = await api.get("/payment/admin/transactions", {
+        params: { status, page, limit },
+      });
+      return response;
+    } catch (error) {
+      console.error("Error fetching admin transactions:", error);
+      throw error;
+    }
+  },
+  confirmTransaction: async (transactionId) => {
+    try {
+      const response = await api.post(
+        `/payment/admin/transactions/${transactionId}/confirm`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error confirming transaction:", error);
+      throw error;
+    }
+  },
   getPaymentProfile: async () => {
     try {
       const response = await api.get("/payment/get-payment-profile");

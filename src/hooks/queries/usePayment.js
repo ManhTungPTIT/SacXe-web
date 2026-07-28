@@ -18,6 +18,34 @@ const usePayment = {
     });
     return { mutate, mutateAsync, isLoading, error };
   },
+  useAdminTransactions: ({ status, page = 1, limit = 20 }) => {
+    const { data, isLoading, isError, ...rest } = useQuery({
+      queryKey: ["admin-transactions", status, page, limit],
+      queryFn: async () => {
+        return await paymentService.getAdminTransactions({
+          status,
+          page,
+          limit,
+        });
+      },
+      // Giữ dữ liệu trang cũ trong lúc tải trang mới để bảng không nhấp nháy.
+      placeholderData: (previousData) => previousData,
+      staleTime: 0,
+    });
+    return { data, isLoading, isError, ...rest };
+  },
+  useConfirmTransaction: () => {
+    const queryClient = useQueryClient();
+    const { mutate, mutateAsync, isPending, error } = useMutation({
+      mutationFn: async (transactionId) => {
+        return await paymentService.confirmTransaction(transactionId);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
+      },
+    });
+    return { mutate, mutateAsync, isPending, error };
+  },
   useGetPaymentProfile: () => {
     const queryClient = useQueryClient();
     const { data, isLoading, isError, ...rest } = useQuery({
