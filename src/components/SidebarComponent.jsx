@@ -4,6 +4,8 @@ import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import {
   Box,
   Drawer,
@@ -38,6 +40,11 @@ const SidebarComponent = ({
     { label: "Thống kê", path: "/analytics", icon: <TrendingUpRoundedIcon /> },
     { label: "Doanh thu", path: "/revenue", icon: <AttachMoneyIcon /> },
     {
+      label: "Đối soát giao dịch",
+      path: "/transaction",
+      icon: <ReceiptLongRoundedIcon />,
+    },
+    {
       label: "Thông báo",
       path: "/notifications",
       icon: <NotificationsIcon />,
@@ -50,6 +57,12 @@ const SidebarComponent = ({
       label: "Quản lý chung cư",
       path: "/apartments-management",
       icon: <LocationCityIcon />,
+    });
+  } else {
+    navItems.splice(2, 0, {
+      label: "Lịch sử sạc",
+      path: "/history",
+      icon: <HistoryRoundedIcon />,
     });
   }
 

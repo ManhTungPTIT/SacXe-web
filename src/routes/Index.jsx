@@ -9,6 +9,8 @@ import ApartmentsManagementPage from "../pages/apartments-management/ApartmentsM
 import ApartmentDetailPage from "../pages/apartments-management/ApartmentDetailPage";
 import NotificationPage from "../pages/notifications/NotificationPage";
 import RevenuePage from "../pages/revenue/RevenuePage";
+import HistoryPage from "../pages/history/HistoryPage";
+import TransactionPage from "../pages/transaction/TransactionPage";
 
 const Index = () => {
   return (
@@ -28,6 +30,8 @@ const Index = () => {
           element={<ApartmentsManagementPage />}
         />
         <Route path="/revenue" element={<RevenuePage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/transaction" element={<TransactionPage />} />
         <Route
           path="/apartments-management/:id"
           element={<ApartmentDetailPage />}
