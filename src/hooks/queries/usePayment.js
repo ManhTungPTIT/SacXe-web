@@ -31,6 +31,10 @@ const usePayment = {
       // Giữ dữ liệu trang cũ trong lúc tải trang mới để bảng không nhấp nháy.
       placeholderData: (previousData) => previousData,
       staleTime: 0,
+      // Khách bấm "Tôi đã chuyển" trên app phải tự hiện ra trên bảng, admin
+      // không phải F5 mới thấy yêu cầu chờ duyệt.
+      refetchInterval: 20000,
+      refetchIntervalInBackground: false,
     });
     return { data, isLoading, isError, ...rest };
   },

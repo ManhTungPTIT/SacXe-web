@@ -13,6 +13,20 @@ import {
 const formatCurrency = (amount) =>
   `${new Intl.NumberFormat("vi-VN").format(amount || 0)} ₫`;
 
+const formatDateTime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  const time = date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const day = date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+  return `${time} · ${day}`;
+};
+
 const Row = ({ label, value }) => (
   <Stack direction="row" spacing={2}>
     <Typography sx={{ minWidth: 96, color: "text.secondary" }}>
@@ -44,6 +58,12 @@ const ConfirmDialog = ({ open, transaction, isPending, onClose, onConfirm }) => 
           <Row label="Khách" value={`${customerName} (${customerContact})`} />
           <Row label="Số tiền" value={formatCurrency(transaction.amount)} />
           <Row label="Nội dung" value={transaction.content} />
+          {transaction.claimedAt && (
+            <Row
+              label="Khách báo"
+              value={`Đã chuyển lúc ${formatDateTime(transaction.claimedAt)}`}
+            />
+          )}
           <Alert severity="warning" sx={{ mt: 1 }}>
             Chỉ xác nhận khi bạn đã thấy khoản chuyển khoản này trong app ngân
             hàng. Thao tác này không hoàn tác được.

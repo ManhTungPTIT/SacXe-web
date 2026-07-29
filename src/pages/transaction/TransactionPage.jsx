@@ -29,6 +29,7 @@ const TABS = [
   { value: "pending", label: "Chờ xử lý" },
   { value: "failed", label: "Thất bại" },
   { value: "completed", label: "Đã cộng tiền" },
+  { value: "cancelled", label: "Đã huỷ" },
 ];
 
 const formatCurrency = (amount) =>
@@ -63,6 +64,9 @@ const TransactionPage = () => {
   const transactions = data?.transactions || [];
   const total = data?.total || 0;
   const pageCount = Math.max(1, Math.ceil(total / LIMIT));
+  const claimedCount = transactions.filter(
+    (transaction) => transaction.claimedAt,
+  ).length;
 
   const handleChangeTab = (_event, value) => {
     setStatus(value);
@@ -95,8 +99,25 @@ const TransactionPage = () => {
       </Typography>
       <Alert severity="info" sx={{ mb: 2 }}>
         Dùng khi API ngân hàng không tự khớp được. Hãy đối chiếu với app ngân
-        hàng trước khi xác nhận.
+        hàng trước khi xác nhận. Giao dịch có nhãn{" "}
+        <strong>&quot;Khách báo đã chuyển&quot;</strong> là khách đã tự xác nhận
+        trên app và được xếp lên đầu danh sách.
       </Alert>
+
+      {claimedCount > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>{claimedCount} khách đã báo chuyển khoản</strong> và đang chờ
+          bạn duyệt. Các giao dịch này nằm ở đầu danh sách.
+        </Alert>
+      )}
+
+      {status === "cancelled" && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Giao dịch khách tự huỷ, chỉ để tra cứu — không cộng tiền được từ đây.
+          Nếu khách khiếu nại là đã chuyển khoản thật, hãy đề nghị khách tạo mã
+          QR mới.
+        </Alert>
+      )}
 
       <Card>
         <Tabs value={status} onChange={handleChangeTab} sx={{ px: 2 }}>
@@ -153,6 +174,16 @@ const TransactionPage = () => {
                             {transaction.user?.phoneNumber ||
                               transaction.user?.email}
                           </Typography>
+                          {transaction.claimedAt && (
+                            <Chip
+                              size="small"
+                              color="warning"
+                              label={`Khách báo đã chuyển · ${formatDateTime(
+                                transaction.claimedAt,
+                              )}`}
+                              sx={{ mt: 0.5 }}
+                            />
+                          )}
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>
                           {formatCurrency(transaction.amount)}
@@ -161,7 +192,7 @@ const TransactionPage = () => {
                           {transaction.content}
                         </TableCell>
                         <TableCell align="right">
-                          {status === "completed" ? (
+                          {status === "completed" && (
                             <Chip
                               size="small"
                               label={
@@ -175,7 +206,13 @@ const TransactionPage = () => {
                                   : "default"
                               }
                             />
-                          ) : (
+                          )}
+                          {status === "cancelled" && (
+                            <Typography variant="body2" color="text.secondary">
+                              Khách tự huỷ
+                            </Typography>
+                          )}
+                          {(status === "pending" || status === "failed") && (
                             <Button
                               variant="contained"
                               size="small"
