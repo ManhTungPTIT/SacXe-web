@@ -7,6 +7,9 @@ const TRANSACTION_EVENTS = [
   "admin_transaction_new",
   "admin_transaction_claimed",
   "admin_transaction_resolved",
+  // Khách bấm "Vẫn huỷ" ở màn QR. Thiếu event này thì dòng đã huỷ nằm lì ở tab
+  // "Chờ xử lý" cho tới lần polling kế tiếp.
+  "admin_transaction_cancelled",
 ];
 
 const useAdminSocket = () => {
