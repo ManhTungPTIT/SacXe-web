@@ -3,11 +3,16 @@ import { Box, IconButton, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import SidebarComponent from "../components/SidebarComponent";
+import useAdminSocket from "../hooks/useAdminSocket";
 
 const SIDEBAR_WIDTH = 260;
 
 const AppLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Layout này chỉ render sau PrivateRoute nên là chỗ đúng để giữ vòng đời
+  // socket: kết nối khi vào khu vực đã đăng nhập, ngắt khi rời đi.
+  useAdminSocket();
 
   const handleOpenSidebar = () => {
     setMobileOpen(true);
