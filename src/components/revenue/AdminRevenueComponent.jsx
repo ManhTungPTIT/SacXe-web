@@ -10,8 +10,16 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import { useState } from "react";
 import useRevenue from "../../hooks/queries/useRevenue";
+import {
+  DEFAULT_REVENUE_RANGE,
+  REVENUE_RANGES,
+} from "../../utils/dateRange";
 import ElectricityPriceCard from "./ElectricityPriceCard";
+import RevenueRangeCards from "./RevenueRangeCards";
 
 const formatCurrency = (value) => {
   const parsed = Number(value) || 0;
@@ -20,6 +28,7 @@ const formatCurrency = (value) => {
 
 const AdminRevenueComponent = () => {
   const { data: responseData, isError, error } = useRevenue.useGetRevenue();
+  const [range, setRange] = useState(DEFAULT_REVENUE_RANGE);
 
   const payload = responseData?.data ?? responseData;
   const revenueRecord =
@@ -112,17 +121,47 @@ const AdminRevenueComponent = () => {
               </Typography>
             </Box>
 
-            <Chip
-              label={
-                hasRevenueRecord ? "Đang ghi nhận" : "Chưa có dữ liệu doanh thu"
-              }
-              sx={{
-                color: "#fff",
-                fontWeight: 700,
-                backgroundColor: alpha("#fff", 0.2),
-                borderRadius: 1.8,
-              }}
-            />
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.2}
+              sx={{ flexWrap: "wrap", rowGap: 1 }}
+            >
+              <Chip
+                label={
+                  hasRevenueRecord
+                    ? "Đang ghi nhận"
+                    : "Chưa có dữ liệu doanh thu"
+                }
+                sx={{
+                  color: "#fff",
+                  fontWeight: 700,
+                  backgroundColor: alpha("#fff", 0.2),
+                  borderRadius: 1.8,
+                }}
+              />
+
+              {/* Nền card là gradient tối nên ô chọn phải có nền sáng riêng,
+                  nếu không chữ đen trên nền xanh đậm gần như không đọc được. */}
+              <TextField
+                select
+                size="small"
+                value={range}
+                onChange={(event) => setRange(event.target.value)}
+                sx={{
+                  minWidth: 140,
+                  backgroundColor: "#fff",
+                  borderRadius: 2,
+                  "& .MuiOutlinedInput-root": { borderRadius: 2 },
+                }}
+              >
+                {Object.entries(REVENUE_RANGES).map(([key, preset]) => (
+                  <MenuItem key={key} value={key}>
+                    {preset.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
@@ -189,6 +228,8 @@ const AdminRevenueComponent = () => {
           </Card>
         ))}
       </Box>
+
+      <RevenueRangeCards range={range} />
 
       <Card
         sx={{
