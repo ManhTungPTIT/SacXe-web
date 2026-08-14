@@ -28,6 +28,17 @@ const apartmentService = {
       throw error;
     }
   },
+  assignAdmin: async (apartmentId, adminId) => {
+    try {
+      const response = await api.put(`/apartment/${apartmentId}/admin`, {
+        adminId,
+      });
+      return response;
+    } catch (error) {
+      console.error("Error assigning apartment admin:", error);
+      throw error;
+    }
+  },
 };
 
 export default apartmentService;

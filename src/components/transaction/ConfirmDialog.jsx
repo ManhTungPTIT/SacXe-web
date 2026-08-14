@@ -38,7 +38,14 @@ const Row = ({ label, value }) => (
   </Stack>
 );
 
-const ConfirmDialog = ({ open, transaction, isPending, onClose, onConfirm }) => {
+const ConfirmDialog = ({
+  open,
+  transaction,
+  isPending,
+  autoCheckEnabled,
+  onClose,
+  onConfirm,
+}) => {
   if (!transaction) return null;
 
   const customerName = transaction.user?.name || "Không rõ";
@@ -68,6 +75,14 @@ const ConfirmDialog = ({ open, transaction, isPending, onClose, onConfirm }) => 
             Chỉ xác nhận khi bạn đã thấy khoản chuyển khoản này trong app ngân
             hàng. Thao tác này không hoàn tác được.
           </Alert>
+          {autoCheckEnabled && (
+            <Alert severity="info">
+              Đối soát tự động đang chạy. Nếu tiền đã về, hệ thống sẽ tự cộng
+              trong vài chục giây — chỉ duyệt tay khi bạn đã đợi mà giao dịch
+              vẫn nằm đây. Hệ thống cộng trước thì nút này sẽ báo lỗi chứ không
+              cộng lần hai.
+            </Alert>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>

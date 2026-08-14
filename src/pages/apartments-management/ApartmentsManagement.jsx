@@ -66,18 +66,19 @@ const ApartmentsManagementPage = () => {
     () => (Array.isArray(response?.data) ? response.data : []),
     [response?.data],
   );
+  console.log("Apartment: ",apartmentsList)
 
   const dashboardStats = useMemo(() => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const totalApartments = apartmentsList.length;
+    // deviceCount / totalSlots / availableSlots do /apartment/get-all tính sẵn
+    // (backend/src/services/aparment.service.js). Trước đây chỗ này đọc
+    // productQuantity — một trường không tồn tại trên model Apartment lẫn trong
+    // response, nên mọi con số thiết bị đều hiện 0.
     const totalDevices = apartmentsList.reduce(
-      (sum, apartment) =>
-        sum +
-        (Number(apartment?.productQuantity) ||
-          Number(apartment?.deviceCount) ||
-          0),
+      (sum, apartment) => sum + (Number(apartment?.deviceCount) || 0),
       0,
     );
     const recentApartments = apartmentsList.filter((apartment) => {
@@ -449,16 +450,20 @@ const ApartmentsManagementPage = () => {
               <TableBody>
                 {apartmentsList.length > 0 ? (
                   apartmentsList.map((row, index) => {
-                    const deviceCount =
-                      Number(row?.productQuantity) ||
-                      Number(row?.deviceCount) ||
-                      0;
+                    const deviceCount = Number(row?.deviceCount) || 0;
+                    // Chỉ chuyển tiếp bản ghi chung cư. Danh sách không còn
+                    // mang theo devices[].outlets[] nên ApartmentDetailPage tự
+                    // gọi /apartment/:id — nhánh nó vốn đã dùng khi vào thẳng
+                    // bằng URL.
+                    const detailState = { apartment: row };
 
                     return (
                       <TableRow
                         key={row._id || `${row?.name || "apartment"}-${index}`}
                         onClick={() =>
-                          navigate(`/apartments-management/${row._id}`)
+                          navigate(`/apartments-management/${row._id}`, {
+                            state: detailState,
+                          })
                         }
                         sx={{
                           "&:nth-of-type(odd)": {
@@ -520,7 +525,9 @@ const ApartmentsManagementPage = () => {
                                 ml: 0.3,
                               }}
                               onClick={() =>
-                                navigate(`/apartments-management/${row._id}`)
+                                navigate(`/apartments-management/${row._id}`, {
+                                  state: detailState,
+                                })
                               }
                             >
                               <ArrowForwardRoundedIcon fontSize="small" />

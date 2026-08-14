@@ -1,5 +1,4 @@
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
-import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
 import {
   Box,
   Card,
@@ -30,32 +29,24 @@ const AdminRevenueComponent = () => {
   const { data: responseData, isError, error } = useRevenue.useGetRevenue();
   const [range, setRange] = useState(DEFAULT_REVENUE_RANGE);
 
+  // Thân response là { revenue: { revenue: [...] }, message }: controller bọc
+  // một lớp, service bọc thêm một lớp nữa, và tầng trong cùng là MẢNG các bản
+  // ghi doanh thu theo ngày (revenue.service.js gom mỗi ngày một document).
+  //
+  // Bản cũ đọc `payload.revenue.revenue` như một object rồi lấy `.revenue` của
+  // nó — trên một mảng thì thuộc tính đó là undefined, Number(undefined) là NaN
+  // và `|| 0` nuốt luôn thành 0. Thẻ vì thế luôn hiện "0 VNĐ" kể cả khi chung cư
+  // đã ghi nhận lợi nhuận.
   const payload = responseData?.data ?? responseData;
-  const revenueRecord =
-    payload?.revenue && typeof payload.revenue === "object"
-      ? payload.revenue?.revenue
-      : null;
+  const revenueRows = Array.isArray(payload?.revenue?.revenue)
+    ? payload.revenue.revenue
+    : [];
 
-  const hasRevenueRecord = Boolean(revenueRecord);
-  const currentRevenue = Number(revenueRecord?.revenue) || 0;
-  const totalRevenue = Number(revenueRecord?.totalRevenue) || 0;
-
-  const summaryCards = [
-    {
-      title: "Doanh thu hiện có",
-      value: formatCurrency(currentRevenue),
-      helper: "Số dư doanh thu đang ghi nhận cho chung cư.",
-      icon: <AccountBalanceWalletRoundedIcon fontSize="small" />,
-      color: "#0f766e",
-    },
-    {
-      title: "Doanh thu lũy kế",
-      value: formatCurrency(totalRevenue),
-      helper: "Tổng doanh thu từ trước tới giờ.",
-      icon: <SavingsRoundedIcon fontSize="small" />,
-      color: "#1d4ed8",
-    },
-  ];
+  const hasRevenueRecord = revenueRows.length > 0;
+  const currentRevenue = revenueRows.reduce(
+    (total, row) => total + (Number(row?.revenue) || 0),
+    0,
+  );
 
   if (isError) {
     return (
@@ -166,69 +157,6 @@ const AdminRevenueComponent = () => {
         </CardContent>
       </Card>
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-          },
-          gap: 1.6,
-        }}
-      >
-        {summaryCards.map((item, index) => (
-          <Card
-            key={item.title}
-            sx={{
-              borderRadius: 3,
-              border: `1px solid ${alpha(item.color, 0.2)}`,
-              boxShadow: 0,
-              animation: "riseUp 460ms ease",
-              animationDelay: `${120 + index * 60}ms`,
-              animationFillMode: "both",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-                boxShadow: `0 10px 22px ${alpha(item.color, 0.18)}`,
-              },
-            }}
-          >
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" justifyContent="space-between" spacing={1}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {item.title}
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5 }}>
-                    {item.value}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 1.8,
-                    display: "grid",
-                    placeItems: "center",
-                    color: item.color,
-                    backgroundColor: alpha(item.color, 0.14),
-                  }}
-                >
-                  {item.icon}
-                </Box>
-              </Stack>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ mt: 1, display: "block" }}
-              >
-                {item.helper}
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
-
       <RevenueRangeCards range={range} />
 
       <Card
@@ -247,13 +175,16 @@ const AdminRevenueComponent = () => {
               sx={{ color: "#3f4b5a" }}
             />
             <Typography sx={{ fontWeight: 700, color: "#2b3441" }}>
-              Doanh thu chung cư
+              Lợi nhuận chung cư
             </Typography>
           </Stack>
         </CardContent>
 
         <Divider sx={{ borderColor: "#d9dee8" }} />
 
+        {/* Con số này KHÔNG theo khoảng lọc ở trên — nó là số dư của cả chung
+            cư. Để chung hàng với dải KPI theo khoảng thì người đọc sẽ tưởng nó
+            cũng đổi theo ô chọn khoảng. */}
         <CardContent sx={{ p: { xs: 1.6, md: 2 }, width: "100%" }}>
           <Box
             sx={{
@@ -264,7 +195,7 @@ const AdminRevenueComponent = () => {
             }}
           >
             <Typography variant="body2" sx={{ color: "#4b5563" }}>
-              Doanh thu đã ghi nhận
+              Lợi nhuận đã ghi nhận
             </Typography>
             <Typography
               variant="h5"
@@ -274,8 +205,8 @@ const AdminRevenueComponent = () => {
             </Typography>
             <Typography variant="caption" sx={{ mt: 0.6, color: "#5b6572" }}>
               {hasRevenueRecord
-                ? "Số liệu cập nhật theo từng phiên sạc phát sinh."
-                : "Chung cư chưa phát sinh doanh thu nào."}
+                ? "Số dư lợi nhuận đang ghi nhận cho chung cư."
+                : "Chung cư chưa phát sinh lợi nhuận nào."}
             </Typography>
           </Box>
         </CardContent>

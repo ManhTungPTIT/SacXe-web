@@ -24,6 +24,15 @@ const paymentService = {
       throw error;
     }
   },
+  getReconciliationStatus: async () => {
+    try {
+      const response = await api.get("/payment/admin/reconciliation-status");
+      return response;
+    } catch (error) {
+      console.error("Error fetching reconciliation status:", error);
+      throw error;
+    }
+  },
   confirmTransaction: async (transactionId) => {
     try {
       const response = await api.post(

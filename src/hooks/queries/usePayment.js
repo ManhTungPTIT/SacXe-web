@@ -31,8 +31,22 @@ const usePayment = {
       // Giữ dữ liệu trang cũ trong lúc tải trang mới để bảng không nhấp nháy.
       placeholderData: (previousData) => previousData,
       staleTime: 0,
-      // Khách bấm "Tôi đã chuyển" trên app phải tự hiện ra trên bảng, admin
-      // không phải F5 mới thấy yêu cầu chờ duyệt.
+      // Socket (useAdminSocket) lo phần tức thời khi khách bấm "Tôi đã chuyển"
+      // hoặc khi một admin khác duyệt xong. Polling ở lại làm lưới an toàn cho
+      // lúc socket rớt — socket.io không phát lại sự kiện đã lỡ.
+      refetchInterval: 60000,
+      refetchIntervalInBackground: false,
+    });
+    return { data, isLoading, isError, ...rest };
+  },
+  // Polling ngắn hơn bảng giao dịch: đây là thứ admin nhìn để quyết định có nên
+  // duyệt tay hay không, biết muộn 1 phút là đã kịp cộng đè lên vòng lặp.
+  useReconciliationStatus: () => {
+    const { data, isLoading, isError, ...rest } = useQuery({
+      queryKey: ["reconciliation-status"],
+      queryFn: async () => {
+        return await paymentService.getReconciliationStatus();
+      },
       refetchInterval: 20000,
       refetchIntervalInBackground: false,
     });

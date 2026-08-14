@@ -1,9 +1,8 @@
-import { Route, Routes } from "react-router-dom";
-import HomePage from "../pages/home/HomePage";
+import { Navigate, Route, Routes } from "react-router-dom";
+import HomePage from "../pages/analytics/AnalyticsPage";
 import LoginPage from "../pages/auth/login/LoginPage";
 import AppLayout from "./AppLayout";
 import PrivateRoute from "./PrivateRoute";
-import AnalyticsPage from "../pages/analytics/AnalyticsPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import ApartmentsManagementPage from "../pages/apartments-management/ApartmentsManagement";
 import ApartmentDetailPage from "../pages/apartments-management/ApartmentDetailPage";
@@ -11,6 +10,7 @@ import NotificationPage from "../pages/notifications/NotificationPage";
 import RevenuePage from "../pages/revenue/RevenuePage";
 import HistoryPage from "../pages/history/HistoryPage";
 import TransactionPage from "../pages/transaction/TransactionPage";
+import User from "../components/user/User";
 
 const Index = () => {
   return (
@@ -24,7 +24,9 @@ const Index = () => {
         }
       >
         <Route path="/" element={<HomePage />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/analytics" element={<Navigate to="/" replace />} />
+        <Route path="/user" element={<Navigate to="/users" replace />} />
+        <Route path="/users" element={<User />} />
         <Route
           path="/apartments-management"
           element={<ApartmentsManagementPage />}

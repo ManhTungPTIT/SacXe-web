@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import useApartment from "../../hooks/queries/useApartment";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -29,7 +29,9 @@ import ElectricBoltRoundedIcon from "@mui/icons-material/ElectricBoltRounded";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import PowerRoundedIcon from "@mui/icons-material/PowerRounded";
+import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
 import AddEChargeDeviceComponent from "../../components/eChargeDevice/AddEChargeDeviceComponent";
+import AssignAdminComponent from "../../components/aparment/AssignAdminComponent";
 import useEChargeDevice from "../../hooks/queries/useEChargeDevice";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,11 +68,35 @@ const getUsageTone = (percent) => {
   return "success";
 };
 
+const sortDeviceOutletsByIndex = (device) => {
+  if (!device || !Array.isArray(device.outlets)) return device;
+
+  return {
+    ...device,
+    outlets: [...device.outlets].sort((a, b) => {
+      const aIndex = Number(a?.index);
+      const bIndex = Number(b?.index);
+
+      return (
+        (Number.isFinite(aIndex) ? aIndex : Number.MAX_SAFE_INTEGER) -
+        (Number.isFinite(bIndex) ? bIndex : Number.MAX_SAFE_INTEGER)
+      );
+    }),
+  };
+};
+
 const ApartmentDetailPage = () => {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const params = useParams();
   const apartmentId = params.id;
+  const { state } = useLocation();
+  // Chỉ nhận bản ghi chung cư qua route state, để phần đầu trang hiện ngay
+  // không phải chờ request. Danh sách trụ và ổ luôn lấy từ /apartment/:id:
+  // route state không tồn tại khi mở thẳng URL hay F5, và nếu để nó chặn
+  // request (enabled: routeDevices.length === 0) thì trang lấy dữ liệu từ hai
+  // nguồn khác nhau tuỳ đường vào — đúng lý do bảng ổ từng rỗng.
+  const routeApartment = state?.apartment;
   const {
     data: responseData,
     isLoading,
@@ -85,6 +111,7 @@ const ApartmentDetailPage = () => {
     apartmentId: apartmentId,
   });
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openAssignDialog, setOpenAssignDialog] = useState(false);
   const addEChargeDeviceMutation = useEChargeDevice.useAdd();
 
   const handleOpenAddDialog = () => {
@@ -144,16 +171,39 @@ const ApartmentDetailPage = () => {
     );
   };
 
-  const apartment = responseData?.data?.apartment;
+  // Dữ liệu API thắng route state: state.apartment được chụp lúc rời trang danh
+  // sách và không bao giờ đổi, nên nếu để nó ưu tiên thì phân công quản lý xong,
+  // invalidate xong, trang vẫn hiện tên admin cũ. Route state chỉ còn nhiệm vụ
+  // hiện nhanh phần đầu trang lúc request chưa về.
+  const apartment = responseData?.data?.apartment || routeApartment;
   const eChargeDevices = responseData?.data?.eChargeDevices;
   const devices = Array.isArray(eChargeDevices) ? eChargeDevices : [];
+  // Bảng ổ đọc từ chính `devices` của API. Mảng `outlets` do getApartmentDetails
+  // trả kèm mỗi trụ; trước đây endpoint không có nó nên bảng chỉ sống được nhờ
+  // dữ liệu chuyền qua route state.
+  const selectedDevice = sortDeviceOutletsByIndex(devices[0]);
+  const outletRows = Array.isArray(selectedDevice?.outlets)
+    ? selectedDevice.outlets
+    : [];
+  const deviceTotalSlots =
+    Number(selectedDevice?.totalSlots) || outletRows.length;
 
   const totalSlots = devices.reduce(
-    (sum, device) => sum + (Number(device?.totalSlots) || 0),
+    (sum, device) =>
+      sum +
+      (Number(device?.totalSlots) ||
+        (Array.isArray(device?.outlets) ? device.outlets.length : 0)),
     0,
   );
   const availableSlots = devices.reduce(
-    (sum, device) => sum + (Number(device?.availableSlots) || 0),
+    (sum, device) =>
+      sum +
+      (Number(device?.availableSlots) ||
+        (Array.isArray(device?.outlets)
+          ? device.outlets.filter(
+              (outlet) => !outlet?.isBroken && !outlet?.isUsing,
+            ).length
+          : 0)),
     0,
   );
   const usedSlots = Math.max(totalSlots - availableSlots, 0);
@@ -373,9 +423,27 @@ const ApartmentDetailPage = () => {
                     <Typography variant="body2" color="text.secondary">
                       Người quản lý
                     </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {apartment?.owner?.name || "Chưa cập nhật"}
-                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <Typography variant="body1" fontWeight={600}>
+                        {apartment?.owner?.name || "Chưa cập nhật"}
+                      </Typography>
+                      {/* Nút đặt sát đúng trường mà nó sửa, không giấu trong
+                          header trang. */}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<ManageAccountsRoundedIcon />}
+                        onClick={() => setOpenAssignDialog(true)}
+                        sx={{ borderRadius: 2, fontWeight: 600, flexShrink: 0 }}
+                      >
+                        {apartment?.owner ? "Đổi quản lý" : "Phân công quản lý"}
+                      </Button>
+                    </Stack>
                   </Box>
 
                   <Box>
@@ -531,16 +599,18 @@ const ApartmentDetailPage = () => {
                         <TableCell>Mã thiết bị</TableCell>
                         <TableCell>Ngày thêm</TableCell>
                         <TableCell>Tổng ổ cắm</TableCell>
-                        <TableCell>Ổ cắm trống</TableCell>
-                        <TableCell>Sử dụng</TableCell>
+                        <TableCell>Trạng thái</TableCell>
+                        {/* <TableCell>Sử dụng</TableCell> */}
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {devices.length > 0 ? (
-                        devices.map((device) => {
-                          const totalSlots = Number(device?.totalSlots) || 0;
+                      {outletRows.length > 0 ? (
+                        
+                        outletRows.map((item) => {
+                          console.log(item)
+                          const totalSlots = deviceTotalSlots;
                           const availableSlots =
-                            Number(device?.availableSlots) || 0;
+                            Number(item?.availableSlots) || 0;
                           const usedSlots = Math.max(
                             totalSlots - availableSlots,
                             0,
@@ -553,7 +623,7 @@ const ApartmentDetailPage = () => {
 
                           return (
                             <TableRow
-                              key={device._id}
+                              key={item._id}
                               hover
                               sx={{
                                 "&:nth-of-type(odd)": {
@@ -566,11 +636,11 @@ const ApartmentDetailPage = () => {
                             >
                               <TableCell>
                                 <Typography variant="body2" fontWeight={700}>
-                                  {device.deviceCode || "N/A"}
+                                  {item?.index || "N/A"}
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                {formatDate(device.createdAt, true)}
+                                {formatDate(item?.createdAt, true)}
                               </TableCell>
                               <TableCell>
                                 <Chip
@@ -579,8 +649,10 @@ const ApartmentDetailPage = () => {
                                   variant="outlined"
                                 />
                               </TableCell>
-                              <TableCell>{availableSlots} ổ cắm</TableCell>
-                              <TableCell
+                              <TableCell>{item.isBroken ? "Bị hỏng" : (
+                                item.isUsing ? "Đang sử dụng" : "Có thể sử dụng"                                                            
+                              )}</TableCell>
+                              {/* <TableCell
                                 sx={{ minWidth: { xs: 160, sm: 190 } }}
                               >
                                 <Stack
@@ -609,7 +681,7 @@ const ApartmentDetailPage = () => {
                                     variant="outlined"
                                   />
                                 </Stack>
-                              </TableCell>
+                              </TableCell> */}
                             </TableRow>
                           );
                         })
@@ -649,6 +721,14 @@ const ApartmentDetailPage = () => {
           addEChargeDeviceMutation?.isPending ||
           addEChargeDeviceMutation?.isLoading,
         )}
+      />
+
+      <AssignAdminComponent
+        open={openAssignDialog}
+        onClose={() => setOpenAssignDialog(false)}
+        apartmentId={apartmentId}
+        apartmentName={apartment?.name || "chung cư này"}
+        currentOwnerId={apartment?.owner?._id}
       />
     </>
   );

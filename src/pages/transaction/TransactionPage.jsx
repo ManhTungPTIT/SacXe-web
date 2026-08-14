@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -27,7 +27,6 @@ const LIMIT = 20;
 
 const TABS = [
   { value: "pending", label: "Chờ xử lý" },
-  { value: "failed", label: "Thất bại" },
   { value: "completed", label: "Đã cộng tiền" },
   { value: "cancelled", label: "Đã huỷ" },
 ];
@@ -49,6 +48,39 @@ const formatDateTime = (value) => {
   return `${time} · ${day}`;
 };
 
+// Trả lời một câu hỏi mà bảng giao dịch không trả lời được: giao dịch còn nằm ở
+// "Chờ xử lý" là vì chưa có tiền về, hay vì đối soát tự động đang chết? Hai ca
+// đó đòi hai hành động ngược nhau — một cái phải đợi, một cái phải duyệt tay.
+const ReconciliationBanner = ({ status }) => {
+  if (!status) {
+    return null;
+  }
+
+  if (!status.loopRunning) {
+    return (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        <strong>Đối soát tự động KHÔNG chạy</strong> (server thiếu cấu hình
+        ACB). Mọi giao dịch phải duyệt tay ở trang này — không có gì tự cộng
+        tiền cho khách.
+      </Alert>
+    );
+  }
+
+  if (!status.autoCheckEnabled) {
+    return (
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        <strong>API ngân hàng đang lỗi</strong> ({status.consecutiveFailures}{" "}
+        lần liên tiếp). Hệ thống tạm thời không tự cộng tiền được — hãy đối
+        chiếu app ngân hàng và duyệt tay.
+        {status.lastSucceededAt && (
+          <> Lần đọc được sao kê gần nhất: {formatDateTime(status.lastSucceededAt)}.</>
+        )}
+      </Alert>
+    );
+  }
+
+};
+
 const TransactionPage = () => {
   const [status, setStatus] = useState("pending");
   const [page, setPage] = useState(1);
@@ -59,14 +91,40 @@ const TransactionPage = () => {
     page,
     limit: LIMIT,
   });
+  const { data: reconciliation } = usePayment.useReconciliationStatus();
   const { mutateAsync, isPending } = usePayment.useConfirmTransaction();
 
-  const transactions = data?.transactions || [];
+  // useMemo để mảng giữ nguyên tham chiếu giữa các lần render: useEffect bên
+  // dưới phụ thuộc vào nó, tạo mảng mới mỗi render là chạy lại mỗi render.
+  const transactions = useMemo(() => data?.transactions || [], [data]);
   const total = data?.total || 0;
   const pageCount = Math.max(1, Math.ceil(total / LIMIT));
   const claimedCount = transactions.filter(
     (transaction) => transaction.claimedAt,
   ).length;
+  const autoCheckEnabled = Boolean(reconciliation?.autoCheckEnabled);
+
+  // Vòng lặp tự động vừa cộng tiền đúng lúc admin đang mở hộp thoại xác nhận.
+  // Backend chặn được cộng lần hai (trả 409), nhưng để hộp thoại mở là mời admin
+  // bấm vào một nút chắc chắn báo lỗi. Đóng luôn và nói rõ vì sao.
+  useEffect(() => {
+    if (!selected || isPending || isLoading) {
+      return;
+    }
+
+    const stillListed = transactions.some(
+      (transaction) => transaction._id === selected._id,
+    );
+
+    if (!stillListed) {
+      setSelected(null);
+      toast.info(
+        `Giao dịch ${formatCurrency(selected.amount)} của ${
+          selected.user?.name || "khách hàng"
+        } vừa được xử lý ở nơi khác, không cần duyệt tay nữa.`,
+      );
+    }
+  }, [transactions, selected, isPending, isLoading]);
 
   const handleChangeTab = (_event, value) => {
     setStatus(value);
@@ -97,12 +155,8 @@ const TransactionPage = () => {
       <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
         Đối soát giao dịch
       </Typography>
-      <Alert severity="info" sx={{ mb: 2 }}>
-        Dùng khi API ngân hàng không tự khớp được. Hãy đối chiếu với app ngân
-        hàng trước khi xác nhận. Giao dịch có nhãn{" "}
-        <strong>&quot;Khách báo đã chuyển&quot;</strong> là khách đã tự xác nhận
-        trên app và được xếp lên đầu danh sách.
-      </Alert>
+
+      <ReconciliationBanner status={reconciliation} />
 
       {claimedCount > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -212,7 +266,7 @@ const TransactionPage = () => {
                               Khách tự huỷ
                             </Typography>
                           )}
-                          {(status === "pending" || status === "failed") && (
+                          {status === "pending" && (
                             <Button
                               variant="contained"
                               size="small"
@@ -244,6 +298,7 @@ const TransactionPage = () => {
         open={Boolean(selected)}
         transaction={selected}
         isPending={isPending}
+        autoCheckEnabled={autoCheckEnabled}
         onClose={() => setSelected(null)}
         onConfirm={handleConfirm}
       />

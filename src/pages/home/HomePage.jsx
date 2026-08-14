@@ -61,6 +61,17 @@ const toneMap = {
 const CHART_PADDING = { top: 20, right: 16, bottom: 38, left: 44 };
 const EMPTY_ROWS = [];
 
+const getDayOnlyAxisLabel = (label) => {
+  const text = String(label ?? "");
+  const isoMatch = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) return String(Number(isoMatch[3]));
+
+  const dayFirstMatch = text.match(/(\d{1,2})[/-]\d{1,2}(?:[/-]\d{2,4})?$/);
+  if (dayFirstMatch) return String(Number(dayFirstMatch[1]));
+
+  return text;
+};
+
 const getAreaChartGeometry = (values = [], chartSize) => {
   if (!values || values.length === 0) {
     return { points: [], linePath: "", areaPath: "", yTicks: [] };
@@ -103,7 +114,12 @@ const getAreaChartGeometry = (values = [], chartSize) => {
   return { points, linePath, areaPath, yTicks };
 };
 
-const AreaChartPlaceholder = ({ labels = [], values = [], chartSize }) => {
+const AreaChartPlaceholder = ({
+  labels = [],
+  values = [],
+  chartSize,
+  xAxisLabelFormatter = (label) => label,
+}) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const safeValues = Array.isArray(values) ? values : [];
   const safeLabels = Array.isArray(labels) ? labels : [];
@@ -223,7 +239,7 @@ const AreaChartPlaceholder = ({ labels = [], values = [], chartSize }) => {
               textAnchor="middle"
               fontFamily="Segoe UI, sans-serif"
             >
-              {label}
+              {xAxisLabelFormatter(label)}
             </text>
           );
         })}
@@ -424,6 +440,9 @@ const HomePage = () => {
     barChart: reportData?.barChart,
     table: reportData?.table,
   };
+  const areaChartLabels = dashboardData?.areaChart?.labels;
+  const shouldShowDayOnlyAxis =
+    Array.isArray(areaChartLabels) && areaChartLabels.length === 30;
 
   const tableRows = dashboardData?.table?.rows || EMPTY_ROWS;
   const tableTitle = dashboardData?.table?.title || "Dữ liệu khách hàng";
@@ -679,9 +698,12 @@ const HomePage = () => {
 
             <CardContent>
               <AreaChartPlaceholder
-                labels={dashboardData?.areaChart?.labels}
+                labels={areaChartLabels}
                 values={dashboardData?.areaChart?.values}
                 chartSize={chartSize}
+                xAxisLabelFormatter={
+                  shouldShowDayOnlyAxis ? getDayOnlyAxisLabel : undefined
+                }
               />
             </CardContent>
           </Card>

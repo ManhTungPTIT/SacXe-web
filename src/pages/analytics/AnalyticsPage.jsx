@@ -58,8 +58,62 @@ const toneMap = {
   },
 };
 
+const kpiIconMap = {
+  warning: <PaidRoundedIcon fontSize="small" />,
+  danger: <BoltRoundedIcon fontSize="small" />,
+  success: <EvStationRoundedIcon fontSize="small" />,
+  title: <ApartmentRoundedIcon fontSize="small" />,
+};
+
 const CHART_PADDING = { top: 20, right: 16, bottom: 38, left: 44 };
 const EMPTY_ROWS = [];
+
+// Khoảng thời gian và mức gom nhóm đi thành cặp: cùng là "12 tháng" thì gom
+// theo tháng, còn "7 ngày" gom theo ngày. Mặc định 7 ngày để mở dashboard lên
+// là thấy ngay tuần vừa rồi.
+const TOP_UP_RANGES = {
+  "7d": { label: "7 ngày", groupBy: "day", days: 7 },
+  "30d": { label: "30 ngày", groupBy: "day", days: 30 },
+  "12m": { label: "12 tháng", groupBy: "month", months: 12 },
+};
+const DEFAULT_TOP_UP_RANGE = "7d";
+
+const toDateParam = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const getTopUpRangeParams = (rangeKey) => {
+  const preset = TOP_UP_RANGES[rangeKey] || TOP_UP_RANGES[DEFAULT_TOP_UP_RANGE];
+  const end = new Date();
+  const start = new Date(end);
+
+  if (preset.months) {
+    // Lùi về ngày 1 của tháng đầu tiên, nếu không tháng cũ nhất sẽ bị cắt cụt.
+    start.setMonth(end.getMonth() - (preset.months - 1), 1);
+  } else {
+    // days - 1: khoảng đã bao gồm cả hôm nay.
+    start.setDate(end.getDate() - (preset.days - 1));
+  }
+
+  return {
+    fromDate: toDateParam(start),
+    toDate: toDateParam(end),
+    groupBy: preset.groupBy,
+  };
+};
+
+const formatVnd = (value) =>
+  `${new Intl.NumberFormat("vi-VN").format(value || 0)} VND`;
+
+const getDayOnlyAxisLabel = (label) => {
+  const text = String(label ?? "");
+  const isoMatch = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) return String(Number(isoMatch[3]));
+
+  const dayFirstMatch = text.match(/(\d{1,2})[/-]\d{1,2}(?:[/-]\d{2,4})?$/);
+  if (dayFirstMatch) return String(Number(dayFirstMatch[1]));
+
+  return text;
+};
 
 const getAreaChartGeometry = (values = [], chartSize) => {
   if (!values || values.length === 0) {
@@ -103,7 +157,12 @@ const getAreaChartGeometry = (values = [], chartSize) => {
   return { points, linePath, areaPath, yTicks };
 };
 
-const AreaChartPlaceholder = ({ labels = [], values = [], chartSize }) => {
+const AreaChartPlaceholder = ({
+  labels = [],
+  values = [],
+  chartSize,
+  xAxisLabelFormatter = (label) => label,
+}) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const safeValues = Array.isArray(values) ? values : [];
   const safeLabels = Array.isArray(labels) ? labels : [];
@@ -223,7 +282,7 @@ const AreaChartPlaceholder = ({ labels = [], values = [], chartSize }) => {
               textAnchor="middle"
               fontFamily="Segoe UI, sans-serif"
             >
-              {label}
+              {xAxisLabelFormatter(label)}
             </text>
           );
         })}
@@ -366,6 +425,7 @@ const AnalyticsPage = () => {
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [topUpRange, setTopUpRange] = useState(DEFAULT_TOP_UP_RANGE);
 
   const chartSize = useMemo(() => {
     if (isMobile) {
@@ -391,9 +451,16 @@ const AnalyticsPage = () => {
     toDate,
   });
 
+  const topUpParams = useMemo(
+    () => getTopUpRangeParams(topUpRange),
+    [topUpRange],
+  );
+
+  const { data: topUpGrowth, isLoading: isTopUpLoading } =
+    useReport.useGetTopUpGrowth(topUpParams);
+
   const dashboardData = {
     kpis: reportData?.kpis,
-    areaChart: reportData?.areaChart,
     barChart: reportData?.barChart,
     table: reportData?.table,
   };
@@ -403,22 +470,15 @@ const AnalyticsPage = () => {
   const isCustomerTable = tableTitle === "Dữ liệu khách hàng";
 
   const fallbackKpis = [
-    { id: "kpi-1", title: "Tổng lượt sạc", value: "--", tone: "primary" },
-    { id: "kpi-2", title: "Điện năng", value: "--", tone: "success" },
-    { id: "kpi-3", title: "Số thiết bị", value: "--", tone: "warning" },
-    { id: "kpi-4", title: "Doanh thu", value: "--", tone: "danger" },
+    { id: "warning", title: "Số tiền tiêu thụ", value: "--", tone: "warning" },
+    { id: "danger", title: "Điện năng tiêu thụ", value: "--", tone: "danger" },
+    { id: "success", title: "Số lượng xe hoạt động", value: "--", tone: "success" },
+    { id: "title", title: "Số lượng chung cư", value: "--", tone: "primary" },
   ];
 
   const kpiItems = dashboardData?.kpis?.length
     ? dashboardData.kpis
     : fallbackKpis;
-
-  const kpiIcons = [
-    <QueryStatsRoundedIcon fontSize="small" key="kpi-icon-1" />,
-    <BoltRoundedIcon fontSize="small" key="kpi-icon-2" />,
-    <ApartmentRoundedIcon fontSize="small" key="kpi-icon-3" />,
-    <PaidRoundedIcon fontSize="small" key="kpi-icon-4" />,
-  ];
 
   const filteredRows = useMemo(() => {
     if (!tableRows.length) return [];
@@ -597,7 +657,9 @@ const AnalyticsPage = () => {
                         backgroundColor: alpha("#fff", 0.2),
                       }}
                     >
-                      {kpiIcons[index % kpiIcons.length]}
+                      {kpiIconMap[item.id] || (
+                        <QueryStatsRoundedIcon fontSize="small" />
+                      )}
                     </Box>
                   </Stack>
                 </CardContent>
@@ -616,8 +678,8 @@ const AnalyticsPage = () => {
           <Card sx={chartCardSx}>
             <CardContent sx={{ pb: 1.2 }}>
               <Stack
-                direction="row"
-                alignItems="center"
+                direction={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "flex-start", sm: "center" }}
                 justifyContent="space-between"
                 spacing={1}
               >
@@ -627,29 +689,77 @@ const AnalyticsPage = () => {
                     sx={{ color: toneMap.primary.line }}
                   />
                   <Typography sx={{ fontWeight: 700, color: "#1f2937" }}>
-                    {dashboardData?.areaChart?.title || "Biểu đồ xu hướng"}
+                    {topUpGrowth?.title || "Tăng trưởng tiền nạp (VND)"}
                   </Typography>
                 </Stack>
-                <Chip
-                  size="small"
-                  label={`${dashboardData?.areaChart?.values?.length || 0} mốc`}
-                  sx={{
-                    backgroundColor: alpha(toneMap.primary.line, 0.12),
-                    color: toneMap.primary.line,
-                    fontWeight: 600,
-                  }}
-                />
+
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ flexWrap: "wrap", rowGap: 1 }}
+                >
+                  <Chip
+                    size="small"
+                    label={formatVnd(topUpGrowth?.total)}
+                    sx={{
+                      backgroundColor: alpha(toneMap.primary.line, 0.12),
+                      color: toneMap.primary.line,
+                      fontWeight: 600,
+                    }}
+                  />
+                  <TextField
+                    select
+                    size="small"
+                    value={topUpRange}
+                    onChange={(event) => setTopUpRange(event.target.value)}
+                    sx={{ minWidth: 116 }}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <CalendarMonthRoundedIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  >
+                    {Object.entries(TOP_UP_RANGES).map(([key, preset]) => (
+                      <MenuItem key={key} value={key}>
+                        {preset.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
               </Stack>
             </CardContent>
 
             <Divider sx={{ borderColor: alpha(theme.palette.divider, 0.85) }} />
 
             <CardContent>
-              <AreaChartPlaceholder
-                labels={dashboardData?.areaChart?.labels}
-                values={dashboardData?.areaChart?.values}
-                chartSize={chartSize}
-              />
+              {isTopUpLoading ? (
+                <Box
+                  sx={{
+                    height: chartSize.height,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography color="text.secondary">
+                    Đang tải dữ liệu…
+                  </Typography>
+                </Box>
+              ) : (
+                <AreaChartPlaceholder
+                  labels={topUpGrowth?.labels}
+                  values={topUpGrowth?.values}
+                  chartSize={chartSize}
+                  xAxisLabelFormatter={
+                    topUpRange === "30d" ? getDayOnlyAxisLabel : undefined
+                  }
+                />
+              )}
             </CardContent>
           </Card>
 

@@ -20,7 +20,7 @@ const useApartment = {
     });
     return { data, isLoading, isError, ...rest };
   },
-  useGetDetails: (apartmentId) => {
+  useGetDetails: (apartmentId, options = {}) => {
     const queryClient = useQueryClient();
     const { data, isLoading, isError, ...rest } = useQuery({
       queryKey: ["APARTMENT_DETAILS", apartmentId],
@@ -33,7 +33,7 @@ const useApartment = {
       onError: (error) => {
         console.error("Error fetching apartment details:", error);
       },
-      enabled: !!apartmentId, // Chỉ chạy query khi apartmentId có giá trị
+      enabled: options.enabled ?? !!apartmentId, // Chỉ chạy query khi apartmentId có giá trị
     });
     return { data, isLoading, isError, ...rest };
   },
@@ -57,6 +57,28 @@ const useApartment = {
       },
     });
     return { mutate, mutateAsync, isLoading, error };
+  },
+  useAssignAdmin: () => {
+    const queryClient = useQueryClient();
+    const { mutate, mutateAsync, isPending, error } = useMutation({
+      mutationFn: async ({ apartmentId, adminId }) => {
+        return await apartmentSerice.assignAdmin(apartmentId, adminId);
+      },
+      // Ba key: trang chi tiết (tên người quản lý), danh sách chung cư (route
+      // state của trang chi tiết lấy từ đây), và danh sách admin — nhãn "đang
+      // quản lý" của người vừa bị điều chuyển đã đổi.
+      onSuccess: (_response, variables) => {
+        queryClient.invalidateQueries({
+          queryKey: ["APARTMENT_DETAILS", variables.apartmentId],
+        });
+        queryClient.invalidateQueries({ queryKey: ["ALL_APARTMENTS"] });
+        queryClient.invalidateQueries({ queryKey: ["ALL_ADMINS"] });
+      },
+      onError: (mutationError) => {
+        console.error("Error assigning apartment admin:", mutationError);
+      },
+    });
+    return { mutate, mutateAsync, isPending, error };
   },
 };
 

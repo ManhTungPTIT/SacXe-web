@@ -17,6 +17,21 @@ const reportService = {
       throw error;
     }
   },
+  // Endpoint riêng, không gộp vào getReports: hai bên chạy trên hai khoảng thời
+  // gian khác nhau (báo cáo là lũy kế toàn thời gian, biểu đồ này đổi theo lựa
+  // chọn của người xem). Route dùng chung cho admin lẫn super admin, backend tự
+  // khoá phạm vi chung cư theo token.
+  getTopUpGrowth: async ({ fromDate, toDate, groupBy }) => {
+    try {
+      const response = await api.get("/report/get-topup-growth", {
+        params: { fromDate, toDate, groupBy },
+      });
+      return response;
+    } catch (error) {
+      console.error("Error fetching top-up growth:", error);
+      throw error;
+    }
+  },
 };
 
 export default reportService;

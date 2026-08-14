@@ -1,10 +1,10 @@
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import NotificationsIcon from "@mui/icons-material/Notifications";
-import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import {
   Box,
@@ -37,7 +37,7 @@ const SidebarComponent = ({
 
   const navItems = [
     { label: "Trang chủ", path: "/", icon: <HomeRoundedIcon /> },
-    { label: "Thống kê", path: "/analytics", icon: <TrendingUpRoundedIcon /> },
+    { label: "Khách hàng", path: "/users", icon: <PeopleAltRoundedIcon /> },
     { label: "Doanh thu", path: "/revenue", icon: <AttachMoneyIcon /> },
     {
       label: "Đối soát giao dịch",
